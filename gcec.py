@@ -9,6 +9,9 @@ class GottaCatchEmCourses:
     COURSE_STATE = {'UNAVAILABLE': 0,
                     'AVAILABLE'  : 1,
                     'SELECTED'   : 2}
+    COURSE_TYPE = {'ROADMAP': 0,
+                   'PE'     : 1,
+                   'GE'     : 2}
 
     def __init__(self, username, password):
         self.setup_browser()
@@ -56,6 +59,7 @@ class GottaCatchEmCourses:
                 course = {} 
                 course['code'] = course_code
                 course['name'] = columns[2].text.strip()
+                course['type'] = self.COURSE_TYPE['ROADMAP']
                 course['sem_1'] = self.get_roadmap_course_state(columns[4])
                 course['sem_2'] = self.get_roadmap_course_state(columns[5])
                 course['sem_3'] = self.get_roadmap_course_state(columns[6])
@@ -63,10 +67,12 @@ class GottaCatchEmCourses:
         return roadmap_courses
 
     def get_elective_courses(self, html_content, type):
-        if (type == "program"):
+        if (type == self.COURSE_TYPE['PE']):
             elective_courses_container = html_content.find('div', id = 'programElective')
+            course_type = self.COURSE_TYPE['PE']
         else:
             elective_courses_container = html_content.find('div', id = 'generalElective')
+            course_type = self.COURSE_TYPE['GE']
 
         elective_courses_table = elective_courses_container.find('table')
         elective_courses_table_rows = elective_courses_table.find_all('tr')
@@ -81,6 +87,7 @@ class GottaCatchEmCourses:
             columns = row.find_all('td')
             course['code'] = columns[0].text.strip()
             course['name'] = columns[1].text.strip()
+            course['type'] = course_type
             course['sem_1'] = self.get_roadmap_course_state(columns[5])
             course['sem_2'] = self.get_roadmap_course_state(columns[6])
             course['sem_3'] = self.get_roadmap_course_state(columns[7])
@@ -112,18 +119,15 @@ class GottaCatchEmCourses:
         self.browser.close()
 
     def start_tracking(self, refresh_cycle = 60, 
-                            semester = 1,
-                            roadmap_courses = [],
-                            pe_courses = [], 
-                            ge_courses = []):
-        tracking_courses = roadmap_courses + pe_courses + ge_courses
+                             semester = 1,
+                             tracking_courses = []):
         while True:
             page_content = self.browser.get_current_page()
             courses = self.get_all_courses(page_content)
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             for course in courses:
                 if (course['code'] in tracking_courses and
-                    self.is_available(course, tracking_semester)):
+                    self.is_available(course, semester)):
                     print('[{}] {} IS AVAILABLE!!!'.format(current_time, 
                                                            course['name']))
             time.sleep(refresh_cycle)
@@ -132,8 +136,8 @@ class GottaCatchEmCourses:
     def get_all_courses(self, html_content):
         courses = []
         courses.extend(self.get_roadmap_courses(html_content)) 
-        courses.extend(self.get_elective_courses(html_content, 'general'))
-        courses.extend(self.get_elective_courses(html_content, 'program'))
+        courses.extend(self.get_elective_courses(html_content, self.COURSE_TYPE['GE']))
+        courses.extend(self.get_elective_courses(html_content, self.COURSE_TYPE['PE']))
         return courses
 
     def is_available(self, course, tracking_semester):
