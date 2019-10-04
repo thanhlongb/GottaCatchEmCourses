@@ -46,10 +46,8 @@ class GottaCatchEmCourses:
         roadmap_courses_table_rows = roadmap_courses_table.find_all('tr')
         roadmap_courses = []
 
-        for index, row in enumerate(roadmap_courses_table_rows):
-            if index == 0 or index == 1:
-                #skip table headers
-                continue
+        for row in roadmap_courses_table_rows[2:]:
+            #first and second row is skipped since they're table header
             if (self.is_completed_course(row)):
                 #skip completed courses
                 continue
@@ -78,11 +76,8 @@ class GottaCatchEmCourses:
         elective_courses_table_rows = elective_courses_table.find_all('tr')
         elective_courses = []
         
-        for index, row in enumerate(elective_courses_table_rows):
-            if index == 0:
-                #skipping table headers 
-                continue
-
+        for row in elective_courses_table_rows[1:]:
+            #first row is skipped since it's table header
             course = {}
             columns = row.find_all('td')
             course['code'] = columns[0].text.strip()
