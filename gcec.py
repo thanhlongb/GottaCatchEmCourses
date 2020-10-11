@@ -6,6 +6,7 @@ import time
 import json
 import pickle
 import requests
+requests.packages.urllib3.disable_warnings() 
 import mechanicalsoup
 
 from pushbullet import PushBullet
@@ -150,8 +151,9 @@ class GottaCatchEmCourses:
             for course in courses:
                 if course['code'] in tracking_courses and self.is_available(course, semester):
                     enrollable_courses.append(course)
-            self.enroll(enrollable_courses, semester)
-            self.parse_enroll_result()
+            if len(enrollable_courses):
+                self.enroll(enrollable_courses, semester)
+                self.parse_enroll_result()
             time.sleep(refresh_cycle)
             print('browser refreshed...')
 
@@ -184,9 +186,9 @@ class GottaCatchEmCourses:
         return self.browser.get_url() == self.URL_SUCCESSFUL_SUBMISSION
 
     def enroll(self, courses, semester):
+        form = self.browser.select_form('#frmEnrolment')
         for course in courses:
             course_checkbox_name = 'form[courses][{}-SEM{}]'.format(course['code'], semester)
-            form = self.browser.select_form('#frmEnrolment')
             form.set_checkbox({course_checkbox_name: True}, False)
             print('{} checkbox checked.'.format(course['name']))
         self.browser.submit_selected()
