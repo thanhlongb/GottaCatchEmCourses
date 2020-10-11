@@ -5,8 +5,10 @@ import re
 import time
 import json
 import pickle
+import requests
 import mechanicalsoup
 
+from pushbullet import PushBullet
 
 class GottaCatchEmCourses:
     URL_OES_LOGIN = 'http://oes.rmit.edu.vn/'
@@ -21,9 +23,11 @@ class GottaCatchEmCourses:
     DEFAULT_PARSER = 'lxml'
 
     browser = None
+    pushbullet = None
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, pushbullet_access_token):
         self.setup_browser()
+        self.pushbullet = PushBullet(pushbullet_access_token)
         try:
             self.load_cookie()
         except Exception:
@@ -48,9 +52,9 @@ class GottaCatchEmCourses:
         print("oes page loaded...")
 
     def submit_login_credentials(self, username, password):
-        self.browser.select_form('#fm1')
-        self.browser['username'] = username
-        self.browser['password'] = password
+        self.browser.select_form('.form-horizontal')
+        self.browser['_username'] = username
+        self.browser['_password'] = password
         self.browser.submit_selected()
         print("form submitted...")
 
@@ -141,12 +145,13 @@ class GottaCatchEmCourses:
             self.open_oes_page()
             page_content = self.browser.get_current_page()
             courses = self.get_all_courses(page_content)
+            enrollable_courses = list()
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             for course in courses:
                 if course['code'] in tracking_courses and self.is_available(course, semester):
-                    print('[{}] {} IS AVAILABLE!!!'.format(current_time, course['name']))
-                    self.enroll(course['code'], semester)
-                    parse_enroll_result()
+                    enrollable_courses.append(course)
+            self.enroll(enrollable_courses, semester)
+            self.parse_enroll_result()
             time.sleep(refresh_cycle)
             print('browser refreshed...')
 
@@ -178,10 +183,12 @@ class GottaCatchEmCourses:
     def is_enrollment_succeed(self):
         return self.browser.get_url() == self.URL_SUCCESSFUL_SUBMISSION
 
-    def enroll(self, course_code, semester):
-        course_checkbox_name = 'form[courses][{}-SEM{}]'.format(course_code, semester)
-        form = self.browser.select_form('#frmEnrolment')
-        form.set_checkbox({course_checkbox_name: True}, False)
+    def enroll(self, courses, semester):
+        for course in courses:
+            course_checkbox_name = 'form[courses][{}-SEM{}]'.format(course['code'], semester)
+            form = self.browser.select_form('#frmEnrolment')
+            form.set_checkbox({course_checkbox_name: True}, False)
+            print('{} checkbox checked.'.format(course['name']))
         self.browser.submit_selected()
         print("enrollment submitted...")
 
